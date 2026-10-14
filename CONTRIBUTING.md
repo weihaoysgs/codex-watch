@@ -28,6 +28,25 @@ QT_QPA_PLATFORM=offscreen /usr/bin/python3 -m unittest discover -s tests -v
 
 `tests/live_reminder.py` 可在 X11 桌面进行置顶提醒联调，需要 `xwininfo` 和 `xprop`。它创建隔离的模拟会话，但会显示真实测试窗口。
 
+### 真实中文输入回归
+
+Qt 离屏测试无法证明输入法插件可用。`tests/live_input_method.py` 通过真实 X11 按键输入拼音，并断言组词期间没有提前上屏、选词后得到中文。覆盖列表逐键刷新、空队列、目录与详情异步返回、取消后重新组词。
+
+仅在隔离容器中运行，不要连接用户桌面的 DISPLAY 或 D-Bus：
+
+```bash
+docker build -f packaging/Dockerfile.ime --build-arg BASE_IMAGE=ubuntu:20.04 -t codex-watch-ime-20 .
+docker run --rm --network none codex-watch-ime-20
+docker run --rm --network none -e QT_IM_MODULE=ibus codex-watch-ime-20
+
+# Ubuntu 22.04 使用相同脚本，替换基础系统
+docker build -f packaging/Dockerfile.ime --build-arg BASE_IMAGE=ubuntu:22.04 -t codex-watch-ime-22 .
+docker run --rm --network none codex-watch-ime-22
+docker run --rm --network none -e QT_IM_MODULE=ibus codex-watch-ime-22
+```
+
+不要用直接注入 Unicode 或 Qt commit 事件代替这项检查：旧版能通过模拟输入，但真实输入法会被列表重绘打断。涉及 Qt 项目视图重建或异步详情更新的修改，应保留这一回归。
+
 ## 提交改动
 
 - 在说明中写清改动原因、行为变化与实际执行的验证。

@@ -13,7 +13,7 @@ A local desktop companion for Codex — watch active tasks, get notified, and ke
 ![Platform](https://img.shields.io/badge/platform-Ubuntu-E95420?logo=ubuntu&logoColor=white)
 ![Python](https://img.shields.io/badge/python-3.8%2B-3776AB?logo=python&logoColor=white)
 ![PyQt](https://img.shields.io/badge/PyQt5-5.14%2B-41CD52)
-![Version](https://img.shields.io/badge/version-0.6.0-8B92D9)
+![Version](https://img.shields.io/badge/version-0.6.1-8B92D9)
 
 [快速开始](#快速开始) · [功能](#功能) · [桌面宠物](#桌面宠物) · [兼容性](#兼容性) · [开发](#开发) · [反馈问题](https://github.com/weihaoysgs/codex-watch/issues)
 
@@ -77,11 +77,18 @@ cd codex-watch
 
 ### 使用 Ubuntu 安装包
 
-仓库不跟踪构建产物；可以在本地生成 `.deb` 和分享用 ZIP：
+从 [GitHub Releases](https://github.com/weihaoysgs/codex-watch/releases) 下载 `.deb` 或分享 ZIP。升级前请先从托盘退出旧版，再安装并重新启动：
+
+```bash
+sudo apt install ./codex-watch_0.6.1_all.deb
+codex-watch
+```
+
+仓库不跟踪构建产物，也可以在本地生成 `.deb` 和分享用 ZIP：
 
 ```bash
 /usr/bin/python3 packaging/build_deb.py
-sudo apt install ./dist/codex-watch_0.6.0_all.deb
+sudo apt install ./dist/codex-watch_0.6.1_all.deb
 codex-watch
 ```
 
@@ -156,8 +163,8 @@ codex-watch
 
 | 环境 | 验证情况 |
 | --- | --- |
-| Ubuntu 20.04 | 容器内原生 Python 3.8.10 / PyQt5 5.14.1 / Qt 5.12.8；安装、52 项测试和离屏界面启动通过，完整 GNOME 桌面尚未实测 |
-| Ubuntu 22.04 / X11 | 已验证实际桌面宠物、置顶提醒、完成与确认流程 |
+| Ubuntu 20.04 | 容器内原生 Python 3.8.10 / PyQt5 5.14.1 / Qt 5.12.8；安装、57 项测试及 Xvfb 中真实 Fcitx 拼音输入通过，完整 GNOME 桌面尚未实测 |
+| Ubuntu 22.04 / X11 | 已验证实际桌面宠物、置顶提醒、完成与确认流程；Qt 5.15.3 下在隔离 Xvfb 中验证真实 Fcitx 和 IBus 拼音输入 |
 | Ubuntu 24.04 / Wayland | 尚未独立实测；窗口定位、置顶与托盘行为可能不同 |
 | ARM64 | 安装包为架构无关的 Python 包，但尚未实机验证 |
 
@@ -191,6 +198,12 @@ CODEX_HOME=/path/to/your/codex ./run.sh
 **Ubuntu 20.04 安装时提示 Python / PyQt5 版本不足？**
 
 使用 **0.5.1 或更新版本**。旧包的最低版本要求过高；无需替换系统 Python 或强制安装旧包。
+
+**搜索框无法正常输入中文，拼音被截断或提前选词？**
+
+请退出旧进程并升级到 **0.6.1 或更新版本**。已修复列表刷新打断输入法组词的问题；组词期间继续监控和提醒，中文提交或取消后再更新搜索结果。
+
+如果完全没有候选框，而且其他 Qt 应用也无法输入中文，请检查所用输入法的 Qt5 插件：Fcitx 4／搜狗通常需要 `fcitx-frontend-qt5`，Fcitx 5 需要 `fcitx5-frontend-qt5`。只安装与你正在使用的框架对应的插件，不需要更换输入法或系统 Python。IBus 的 Qt5 插件由系统 Qt 提供。输入法环境变量的说明见 [Fcitx 官方配置文档](https://fcitx-im.org/wiki/Input_method_related_environment_variables)。
 
 **没有检测到任务？**
 
@@ -236,6 +249,7 @@ native/
   core.py          只读会话适配与提醒队列
   main.py          主窗口、托盘、设置与生命周期
   history.py       按目录分组的只读会话浏览
+  search.py        输入法组词与安全延后重绘
   reminder.py      独立置顶提醒卡片
   pet.py           桌面宠物与任务状态联动
   pet_scenes.py    生活场景动作与道具

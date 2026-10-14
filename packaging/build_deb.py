@@ -28,7 +28,7 @@ def main():
             p.chmod(mode)
 
         # No recursive copying: user files, local screenshots, pycache and state cannot leak in.
-        native_files = ['core.py', 'main.py', 'history.py', 'reminder.py', 'pet.py', 'pet_scenes.py', 'version.py', 'theme.qss', 'icon.svg']
+        native_files = ['core.py', 'main.py', 'history.py', 'search.py', 'reminder.py', 'pet.py', 'pet_scenes.py', 'version.py', 'theme.qss', 'icon.svg']
         for name in native_files:
             write('usr/share/codex-watch/native/' + name, (ROOT / 'native' / name).read_text())
         pet_files = ['manifest.json', 'THIRD_PARTY_NOTICES.md'] + [

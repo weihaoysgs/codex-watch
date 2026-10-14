@@ -13,7 +13,7 @@ from PyQt5.QtCore import Qt, QTimer, QSize, QThread, pyqtSignal, QUrl, QLockFile
 from PyQt5.QtGui import QColor, QPainter, QPen, QIcon, QPixmap, QDesktopServices
 from PyQt5.QtNetwork import QLocalServer, QLocalSocket
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QFrame, QVBoxLayout,
-    QHBoxLayout, QLabel, QPushButton, QListWidget, QListWidgetItem, QLineEdit,
+    QHBoxLayout, QLabel, QPushButton, QListWidget, QListWidgetItem,
     QSystemTrayIcon, QMenu, QDialog, QCheckBox, QComboBox, QMessageBox,
     QTextBrowser, QSplitter, QSizeGrip, QShortcut, QAbstractItemView, QStackedWidget)
 
@@ -22,6 +22,7 @@ from reminder import ReminderCard
 from version import VERSION
 from pet import DesktopPet
 from history import HistoryPanel
+from search import SearchEdit
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = Path(os.environ.get('XDG_DATA_HOME', str(Path.home() / '.local/share'))) / 'codex-watch'
@@ -250,11 +251,12 @@ class Window(QMainWindow):
         top = QHBoxLayout()
         top.addWidget(label(time.strftime('%m 月 %d 日') + '  /  实时工作提醒', 'eyebrow'))
         top.addStretch()
-        self.search = QLineEdit()
+        self.search = SearchEdit()
         self.search.setObjectName('search')
         self.search.setPlaceholderText('搜索项目、会话、终端…')
         self.search.setFixedWidth(235)
         self.search.textChanged.connect(self.render)
+        self.search.inputSettled.connect(self.finish_search_input)
         top.addWidget(self.search)
         cl.addLayout(top)
         cl.addSpacing(8)
@@ -341,6 +343,7 @@ class Window(QMainWindow):
         self.pages = QStackedWidget()
         self.pages.addWidget(self.splitter)
         self.history = HistoryPanel(self.reader.home, demo_sessions() if demo else None)
+        self.history.input_busy = self.search.input_busy
         self.history.summaryChanged.connect(lambda text: self.count.setText(text) if self.view == 3 else None)
         self.history.workersChanged.connect(self.scan_finished)
         self.pages.addWidget(self.history)
@@ -489,6 +492,11 @@ class Window(QMainWindow):
         self.nav.item(1).setText(f'等你确认   {unread}' if unread else '等你确认')
         self.tray.setToolTip(f'候响 · {values[0]} 个进行中 · {unread} 个待处理')
         self.tray.setIcon(icon('#b68a51' if unread else '#7d8ccd'))
+        # QAbstractItemView resets can reset the global platform input context,
+        # even while this separate search field has keyboard focus. Monitoring,
+        # notifications and pet/count updates continue during composition.
+        if self.search.input_busy():
+            return
         if self.view == 3:
             self.history.filter(self.search.text())
             return
@@ -517,6 +525,10 @@ class Window(QMainWindow):
         self.list.verticalScrollBar().setValue(scroll)
         self.show_detail()
         self.ack_all.setEnabled(any(s.unread for s in shown))
+
+    def finish_search_input(self):
+        self.render()
+        self.history.flush_pending()
 
     def current(self):
         return next((s for s in self.sessions if s.id == self.selected), None)

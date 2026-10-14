@@ -49,6 +49,8 @@ class HistoryPanel(QWidget):
         self.workers = []
         self.generation = 0
         self.stopping = False
+        self.input_busy = lambda: False
+        self.pending_updates = {}
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         self.message = plain_label('按项目目录浏览当前用户的本地会话，包含已归档记录。', 'tiny')
@@ -114,6 +116,10 @@ class HistoryPanel(QWidget):
         self.summaryChanged.emit('会话目录暂不可用')
 
     def receive_index(self, sessions):
+        if self.input_busy():
+            self.pending_updates['index'] = (self.receive_index, (sessions,))
+            return
+        self.pending_updates.pop('index', None)
         self.sessions = sessions
         self.loaded = True
         self.message.setText('包含已完成、已归档会话；仅点选时读取最近回复，不加入提醒队列。')
@@ -186,12 +192,29 @@ class HistoryPanel(QWidget):
                               lambda error: self.detail_error(error, request))
 
     def receive_detail(self, session, request):
-        if request == self.generation and session.id == self.selected and not self.stopping:
-            self.show_session(session)
+        if request != self.generation or session.id != self.selected or self.stopping:
+            return
+        if self.input_busy():
+            self.pending_updates['detail'] = (self.receive_detail, (session, request))
+            return
+        self.pending_updates.pop('detail', None)
+        self.show_session(session)
 
     def detail_error(self, error, request):
-        if request == self.generation and not self.stopping:
-            self.body.setPlainText('无法读取会话详情：' + error)
+        if request != self.generation or self.stopping:
+            return
+        if self.input_busy():
+            self.pending_updates['detail'] = (self.detail_error, (error, request))
+            return
+        self.pending_updates.pop('detail', None)
+        self.body.setPlainText('无法读取会话详情：' + error)
+
+    def flush_pending(self):
+        if self.input_busy() or self.stopping:
+            return
+        pending, self.pending_updates = self.pending_updates, {}
+        for callback, args in pending.values():
+            callback(*args)
 
     def show_session(self, session, loading=False):
         self.title.setText(session.title)

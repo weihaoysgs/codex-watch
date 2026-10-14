@@ -10,7 +10,7 @@ import main
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtTest import QTest
 from PyQt5.QtCore import Qt, QPoint, QPointF, QEvent
-from PyQt5.QtGui import QMouseEvent
+from PyQt5.QtGui import QMouseEvent, QInputMethodEvent
 
 
 class GuiTests(unittest.TestCase):
@@ -99,6 +99,83 @@ class GuiTests(unittest.TestCase):
         self.assertEqual(self.w.list.count(), 0)
         self.assertFalse(self.w.copy.isEnabled())
         self.assertEqual(self.w.preview.toPlainText(), '')
+
+    def test_ime_composition_and_commit_do_not_rebuild_views_reentrantly(self):
+        self.w.search.setFocus()
+        original_count = self.w.list.count()
+        self.app.sendEvent(self.w.search, QInputMethodEvent('nihao', []))
+        self.w.sessions = []
+        self.w.render()
+        self.assertEqual(self.w.list.count(), original_count)
+        self.assertEqual(self.w.stats[0].text(), '0')
+        during_commit = []
+        self.w.search.textChanged.connect(lambda _: during_commit.append(self.w.list.count()))
+        commit = QInputMethodEvent()
+        commit.setCommitString('你好')
+        self.app.sendEvent(self.w.search, commit)
+        self.assertEqual(during_commit, [original_count])
+        self.app.processEvents()
+        self.assertEqual(self.w.list.count(), 0)
+        self.assertEqual(self.w.search.text(), '你好')
+
+    def test_ime_cancel_flushes_pending_view_and_history_updates(self):
+        self.w.nav.setCurrentRow(3)
+        self.w.search.setFocus()
+        count = self.w.history.tree.topLevelItemCount()
+        self.app.sendEvent(self.w.search, QInputMethodEvent('ni', []))
+        self.w.history.receive_index([main.Session('new', title='中文', cwd='/new')])
+        self.assertEqual(self.w.history.tree.topLevelItemCount(), count)
+        self.app.sendEvent(self.w.search, QInputMethodEvent('', []))
+        self.app.processEvents()
+        self.assertEqual(self.w.history.tree.topLevelItemCount(), 1)
+        self.assertEqual(self.w.history.sessions[0].id, 'new')
+        self.assertFalse(self.w.history.pending_updates)
+        # A result delivered between commit and the zero-delay flush wins over
+        # an older queued index; the timer must not roll the directory back.
+        self.app.sendEvent(self.w.search, QInputMethodEvent('ni', []))
+        self.w.history.receive_index([main.Session('older', cwd='/old')])
+        self.app.sendEvent(self.w.search, QInputMethodEvent('', []))
+        self.w.history.receive_index([main.Session('newest', cwd='/new')])
+        self.app.processEvents()
+        self.assertEqual(self.w.history.sessions[0].id, 'newest')
+
+    def test_ime_deferred_detail_still_rejects_stale_results(self):
+        self.w.nav.setCurrentRow(3)
+        panel = self.w.history
+        panel.selected = 'new'
+        panel.generation = 8
+        self.w.search.setFocus()
+        self.app.sendEvent(self.w.search, QInputMethodEvent('ni', []))
+        panel.receive_detail(main.Session('new', preview='正确回复'), 8)
+        panel.receive_detail(main.Session('old', preview='过时回复'), 7)
+        self.app.sendEvent(self.w.search, QInputMethodEvent('', []))
+        self.app.processEvents()
+        self.assertEqual(panel.body.toPlainText(), '正确回复')
+
+    def test_ime_does_not_suspend_task_completion_notifications(self):
+        self.w.demo = False
+        self.w.search.setFocus()
+        self.app.sendEvent(self.w.search, QInputMethodEvent('ni', []))
+        session = main.Session('ime-live', status='running', turn_id='t', updated=main.time.time())
+        with patch.object(self.w.tray, 'showMessage') as notify:
+            self.w.receive([session], [])
+            session.status = 'completed'
+            self.w.receive([session], [])
+            notify.assert_called_once()
+            self.assertTrue(session.unread)
+            self.assertTrue(self.w.reminder.isVisible())
+            self.assertEqual(self.w.pet.pending, 1)
+        self.w.demo = True
+
+    def test_ime_focus_loss_does_not_leave_refresh_paused(self):
+        self.w.search.setFocus()
+        self.app.sendEvent(self.w.search, QInputMethodEvent('ni', []))
+        self.w.sessions = []
+        self.w.render()
+        self.w.nav.setFocus()
+        self.app.processEvents()
+        self.assertFalse(self.w.search.input_busy())
+        self.assertEqual(self.w.list.count(), 0)
 
     def test_filters_and_copy_resume(self):
         self.w.nav.setCurrentRow(2)
