@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=候响 · Codex Watch
+GenericName=Codex Work Monitor
+Comment=Monitor active Codex work and receive completion reminders
+Comment[zh_CN]=只关注正在工作的 Codex，完成后弹窗提醒
+Exec=codex-watch
+Icon=io.local.CodexWatch
+Terminal=false
+Categories=Development;
+Keywords=Codex;Monitor;Reminder;候响;提醒;
+StartupWMClass=codex-watch
+StartupNotify=false

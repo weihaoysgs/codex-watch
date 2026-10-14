@@ -1,0 +1,78 @@
+{
+  "source_sha256": "e60f863e5abdce6fcded54f6b82bbda752ba0b555bc69c76c7da42d692e7b47c",
+  "license": "CC0-1.0",
+  "pets": {
+    "cat": {
+      "animations": {
+        "idle": {
+          "file": "cat-idle.png",
+          "cell": [
+            288,
+            240
+          ],
+          "frames": 10
+        },
+        "walk": {
+          "file": "cat-walk.png",
+          "cell": [
+            288,
+            240
+          ],
+          "frames": 10
+        },
+        "run": {
+          "file": "cat-run.png",
+          "cell": [
+            288,
+            240
+          ],
+          "frames": 8
+        },
+        "jump": {
+          "file": "cat-jump.png",
+          "cell": [
+            288,
+            240
+          ],
+          "frames": 8
+        }
+      }
+    },
+    "dog": {
+      "animations": {
+        "idle": {
+          "file": "dog-idle.png",
+          "cell": [
+            288,
+            240
+          ],
+          "frames": 10
+        },
+        "walk": {
+          "file": "dog-walk.png",
+          "cell": [
+            288,
+            240
+          ],
+          "frames": 10
+        },
+        "run": {
+          "file": "dog-run.png",
+          "cell": [
+            288,
+            240
+          ],
+          "frames": 8
+        },
+        "jump": {
+          "file": "dog-jump.png",
+          "cell": [
+            288,
+            240
+          ],
+          "frames": 8
+        }
+      }
+    }
+  }
+}
